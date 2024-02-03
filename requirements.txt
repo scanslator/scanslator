@@ -1,0 +1,5 @@
+flask
+numpy
+fastai~=2.7.13
+torch
+torchvision
