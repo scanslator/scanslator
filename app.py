@@ -1,4 +1,5 @@
 from flask import Flask, request, send_file
+from flask_cors import CORS
 import os
 import numpy as np
 import PIL.Image
@@ -45,6 +46,7 @@ def postprocess_red(logits):
 
 print('Initializing API...')
 app = Flask(__name__)
+CORS(app)
 
 UPLOAD_FOLDER = 'uploads'
 if not os.path.exists(UPLOAD_FOLDER):
