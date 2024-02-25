@@ -9,6 +9,8 @@ import torchvision.transforms.v2
 import fastai.vision.learner
 import fastai.vision.models
 import fastai.vision.data
+import cv2 as cv
+from werkzeug.utils import secure_filename
 
 
 print('Initializing Model...')
@@ -44,6 +46,19 @@ def postprocess_red(logits):
     img = PIL.Image.fromarray(rgba_image, mode='RGBA')
     return img
 
+def infill(image_path, mask_path):
+    img = cv.imread(image_path)
+    mask = cv.imread(mask_path, cv.IMREAD_GRAYSCALE)
+    
+    # Dilate the mask if needed (currently commented out)
+    kernel = np.ones((10,10), np.uint8)
+    dilated_mask = cv.dilate(mask, kernel, iterations = 1)
+    
+    # Apply inpainting with mask
+    dst = cv.inpaint(img, dilated_mask, 10, cv.INPAINT_TELEA)
+    return dst
+    
+
 print('Initializing API...')
 app = Flask(__name__)
 CORS(app)
@@ -75,3 +90,32 @@ def gen_mask():
             mask.save(filepath, format='PNG')
             return send_file(filepath, mimetype='image/png')
     return
+
+
+@app.route('/infill', methods=['POST'])
+def gen_infill():
+    if request.method == 'POST':
+        if 'mask' not in request.files or 'image' not in request.files:
+            return 'No file part in the request', 400
+        image = request.files['image']
+        mask = request.files['mask']
+        if image.filename == '':
+            return 'No selected file', 400
+        if image and mask:
+            # Save uploaded files temporarily
+            image_path = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(image.filename))
+            mask_path = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(mask.filename))
+            image.save(image_path)
+            mask.save(mask_path)
+            
+            # Process the image and mask
+            output = infill(image_path, mask_path)
+            processed_filename = "infill_" + os.path.splitext(image.filename)[0] + ".png"
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], processed_filename)
+            
+            # Save the processed image
+            cv.imwrite(filepath, output)
+            
+            # Return the processed file
+            return send_file(filepath, mimetype='image/png')
+    return 'Invalid request', 400

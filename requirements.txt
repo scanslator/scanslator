@@ -4,3 +4,4 @@ fastai~=2.7.13
 torch
 torchvision
 flask-cors
+opencv-python
