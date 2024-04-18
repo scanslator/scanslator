@@ -1,4 +1,4 @@
-from flask import Flask, request, send_file
+from flask import Flask, request, send_file, jsonify
 from flask_cors import CORS
 import os
 import numpy as np
@@ -69,10 +69,12 @@ if not os.path.exists(UPLOAD_FOLDER):
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
+# test route
 @app.route("/")
 def hello_world():
     return "<p>Hello, Scanslator!</p>"
 
+# generate mask
 @app.route('/mask', methods=['POST'])
 def gen_mask():
     if request.method == 'POST':
@@ -92,6 +94,7 @@ def gen_mask():
     return
 
 
+# generate infill
 @app.route('/infill', methods=['POST'])
 def gen_infill():
     if request.method == 'POST':
@@ -119,3 +122,39 @@ def gen_infill():
             # Return the processed file
             return send_file(filepath, mimetype='image/png')
     return 'Invalid request', 400
+
+# generate translation with textbox
+@app.route('/textbox', methods=['POST'])
+def gen_textboxes():
+    if request.method != 'POST':
+        return 'Invalid request method', 405
+
+    if 'image' not in request.files:
+        return 'Image file part missing', 400
+
+    image = request.files['image']
+
+    if image.filename == '':
+        return 'No image selected', 400
+
+    # Here, you would normally process the image to detect text boxes
+    # For now, we just return a fixed JSON response
+
+    response = [
+        {
+            "top": 189,
+            "left": 231,
+            "right": 249,
+            "bottom": 133,
+            "text": "Sample text that has been translated from manga!"
+        },
+        {
+            "top": 777,
+            "left": 249,
+            "right": 555,
+            "bottom": 321,
+            "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco "
+        }
+    ]
+
+    return jsonify(response)
