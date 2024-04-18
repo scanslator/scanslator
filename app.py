@@ -153,7 +153,28 @@ def gen_textboxes():
             "left": 249,
             "right": 555,
             "bottom": 321,
-            "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco "
+            "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco"
+        },
+        {
+            "top": 100,
+            "left": 150,
+            "right": 550,
+            "bottom": 125,
+            "text": "Another sample of extracted text, possibly from a different part of the same document or image."
+        },
+        {
+            "top": 300,
+            "left": 100,
+            "right": 600,
+            "bottom": 350,
+            "text": "Here is some more text, extracted from an area below the previous boxes, showcasing multiline capability."
+        },
+        {
+            "top": 400,
+            "left": 120,
+            "right": 580,
+            "bottom": 420,
+            "text": "Final example of text recognition box, smaller and in the lower section of the image."
         }
     ]
 
