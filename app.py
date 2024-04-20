@@ -133,8 +133,8 @@ def gen_infill():
 
 
 # generate translation with textbox
-@app.route('/textbox', methods=['POST'])
-def gen_textboxes():
+@app.route('/textbox_dummy', methods=['POST'])
+def gen_textboxes_dummy():
     if request.method != 'POST':
         return 'Invalid request method', 405
 
@@ -190,10 +190,9 @@ def gen_textboxes():
     return jsonify(response)
 
 
-
 # generate translation with textbox
-@app.route('/textbox_real', methods=['POST'])
-def gen_textboxes_real():
+@app.route('/textbox', methods=['POST'])
+def gen_textboxes():
     if request.method != 'POST':
         return 'Invalid request method', 405
     if 'image' not in request.files:
