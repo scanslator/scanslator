@@ -12,6 +12,14 @@ import fastai.vision.data
 import cv2 as cv
 from werkzeug.utils import secure_filename
 
+# NEW IMPORTS
+import easyocr
+from shapely.geometry import Polygon
+from shapely.ops import unary_union
+import json
+from manga_ocr import MangaOcr
+from googletrans import Translator
+
 
 print('Initializing Model...')
 device = torch.device('cpu')
@@ -123,6 +131,7 @@ def gen_infill():
             return send_file(filepath, mimetype='image/png')
     return 'Invalid request', 400
 
+
 # generate translation with textbox
 @app.route('/textbox', methods=['POST'])
 def gen_textboxes():
@@ -179,3 +188,132 @@ def gen_textboxes():
     ]
 
     return jsonify(response)
+
+
+
+# generate translation with textbox
+@app.route('/textbox_real', methods=['POST'])
+def gen_textboxes_real():
+    if request.method != 'POST':
+        return 'Invalid request method', 405
+    if 'image' not in request.files:
+        return 'Image file part missing', 400
+    image = request.files['image']
+    if image.filename == '':
+        return 'No image selected', 400
+    
+    # Save uploaded files temporarily
+    image_path = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(image.filename))
+    #image.save(image_path)
+
+    # RUN EASY OCR 
+    reader = easyocr.Reader(['ja','en']) # this needs to run only once to load the model into memory
+    result = reader.readtext(image_path)
+    bounding_boxes = [detection[0] for detection in result]
+
+    # MERGE BOUNDING BOXES
+    merged_boxes = merge_boxes(bounding_boxes)
+    merged_boxes = merge_boxes(merged_boxes, dist_threshold=0)
+
+    print('----Merged Boxes------------------------------------------------')
+    print("merged_boxes", merged_boxes)
+    print('----------------------------------------------------')
+
+    translations = run_magaOCR(image_path, merged_boxes)
+
+    print('----Translations------------------------------------------------')
+    print("translations", translations)
+    print('----------------------------------------------------')
+
+    response = translation_json(translations)
+
+
+    return response
+
+
+# helpers for bounding box
+def get_minimum_bounding_box(polygons):
+    """
+    Get the minimum bounding box for a list of polygons.
+    """
+    merged_poly = unary_union(polygons)  # Merge all polygons into one
+    min_rect = merged_poly.minimum_rotated_rectangle  # Get the minimum rotated rectangle
+    return np.array(min_rect.exterior.coords)
+# helpers for bounding box
+def merge_boxes(bounding_boxes, dist_threshold=10):
+    """
+    Merge rotated bounding boxes that are overlapping or within a specified distance threshold.
+    """
+    polygons = [Polygon(box) for box in bounding_boxes]
+    
+    # Merge polygons that are close to each other or overlap
+    merged_polygons = []
+    for poly in polygons:
+        if not merged_polygons:
+            merged_polygons.append(poly)
+            continue
+        
+        for merged_poly in merged_polygons:
+            if poly.distance(merged_poly) < dist_threshold or poly.intersects(merged_poly):
+                merged_polygons.remove(merged_poly)
+                poly = unary_union([poly, merged_poly])
+                break
+        merged_polygons.append(poly)
+    
+    # Get the minimum bounding boxes for the merged polygons
+    merged_boxes = [get_minimum_bounding_box([poly]) for poly in merged_polygons]
+    
+    return merged_boxes
+
+# USE MANGA-OCR TO GET JAPANESE CHARACTERS
+def run_magaOCR(image_path, merged_boxes):
+    """ GENERATE ARRAY OF TRANSLATIONS """
+    print('~~~~~~~~~~ !!!!!!!!!!!!!!!!! ATTEMPTING MOCR INIT !!!!!!!!!!!!!!!!!!!! ~~~~~~~~~~~')
+    mocr = MangaOcr()
+    print('~~~~~~~~~~ MOCR INIT COMPLETE ~~~~~~~~~~~')
+
+    img = cv.imread(image_path)
+
+    translations = []
+
+    def get_rectangle_coords(box):
+        """Convert bounding box coordinates to rectangle coordinates."""
+        x_min = np.min(box[:, 0])
+        y_min = np.min(box[:, 1])
+        x_max = np.max(box[:, 0])
+        y_max = np.max(box[:, 1])
+        return int(x_min), int(y_min), int(x_max), int(y_max)
+
+    for box in merged_boxes:
+        x_min, y_min, x_max, y_max = get_rectangle_coords(box)
+        cropped_image = img[y_min:y_max, x_min:x_max]
+        
+        cropped_image_rgb = cv.cvtColor(cropped_image, cv.COLOR_BGR2RGB) # convert the cropped image from OpenCV's BGR format to RGB
+        cropped_image_pil = PIL.Image.fromarray(cropped_image_rgb) # convert the NumPy array to a PIL.Image object
+        
+        text = mocr(cropped_image_pil)  # call api
+        
+        translations.append([box,text])
+    
+    return translations
+
+def translation_json(input_data):
+    result = []
+    for item in input_data:
+        coordinates = item[0]
+        japanese_text = item[1]
+        english_text = translate_japanese_to_english(japanese_text)
+        bounding_box = {
+            "top": coordinates[0][1],
+            "left": coordinates[0][0],
+            "right": coordinates[2][0],
+            "bottom": coordinates[2][1],
+            "text": english_text
+        }
+        result.append(bounding_box)
+    return json.dumps(result, indent=4, ensure_ascii=False)
+
+def translate_japanese_to_english(text):
+    translator = Translator()
+    translated_text = translator.translate(text, src='ja', dest='en')
+    return translated_text.text
