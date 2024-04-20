@@ -267,9 +267,9 @@ def merge_boxes(bounding_boxes, dist_threshold=10):
 # USE MANGA-OCR TO GET JAPANESE CHARACTERS
 def run_magaOCR(image_path, merged_boxes):
     """ GENERATE ARRAY OF TRANSLATIONS """
-    print('~~~~~~~~~~ !!!!!!!!!!!!!!!!! ATTEMPTING MOCR INIT !!!!!!!!!!!!!!!!!!!! ~~~~~~~~~~~')
+    print('~~~~~~~~~~ !!!!!!!!!!!!!!!!! ATTEMPTING MangaOCR INIT !!!!!!!!!!!!!!!!!!!! ~~~~~~~~~~~')
     mocr = MangaOcr()
-    print('~~~~~~~~~~ MOCR INIT COMPLETE ~~~~~~~~~~~')
+    print('~~~~~~~~~~ MOCR COMPLETE ~~~~~~~~~~~')
 
     img = cv.imread(image_path)
 
@@ -302,11 +302,13 @@ def translation_json(input_data):
         coordinates = item[0]
         japanese_text = item[1]
         english_text = translate_japanese_to_english(japanese_text)
+        xs = [coord[0] for coord in coordinates]
+        ys = [coord[1] for coord in coordinates]
         bounding_box = {
-            "top": coordinates[0][1],
-            "left": coordinates[0][0],
-            "right": coordinates[2][0],
-            "bottom": coordinates[2][1],
+            "top": max(ys),
+            "left": min(xs),
+            "right": max(xs),
+            "bottom": min(ys),
             "text": english_text
         }
         result.append(bounding_box)
