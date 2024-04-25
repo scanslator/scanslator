@@ -203,7 +203,7 @@ def gen_textboxes():
     
     # Save uploaded files temporarily
     image_path = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(image.filename))
-    #image.save(image_path)
+    image.save(image_path)
 
     # RUN EASY OCR 
     reader = easyocr.Reader(['ja','en']) # this needs to run only once to load the model into memory
